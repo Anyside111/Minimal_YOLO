@@ -1,7 +1,6 @@
 import torch
 from torch import nn
 
-
 def bbox_center(boxes):
     boxes_cx = (boxes[..., 0] + boxes[..., 2]) / 2
     boxes_cy = (boxes[..., 1] + boxes[..., 3]) / 2
@@ -29,6 +28,17 @@ def calculate_batch_iou(box1: torch.Tensor, box2: torch.Tensor, eps: float = 1e-
     return overlap / union
 
 
+def update_anchor(anchor, w, h):
+    x1, y1, x2, y2 = anchor
+    center_x = (x1 + x2) / 2
+    center_y = (y1 + y2) / 2
+    new_x1 = center_x - w / 2
+    new_y1 = center_y - h / 2
+    new_x2 = center_x + w / 2
+    new_y2 = center_y + h / 2
+    return [new_x1, new_y1, new_x2, new_y2]
+
+
 class Assigner(nn.Module):
     def __init__(self, im_hw, anchor_num_per_level, topk=9):
         super().__init__()
@@ -53,7 +63,12 @@ class Assigner(nn.Module):
         anchors_l = [[l3_unit_w * i, l3_unit_h * j, l3_unit_w * (i + 1), l3_unit_h * (j + 1)]
                      for j in range(anchor_l3_n) for i in range(anchor_l3_m)]
 
-        self.anchors = torch.tensor(anchors_s + anchors_m + anchors_l) # concactate anchors
+        anchors_s = [update_anchor(anchor, 40, 40/0.7835) for anchor in anchors_s]
+        anchors_m = [update_anchor(anchor, 60, 60/0.7835) for anchor in anchors_m]
+        anchors_l = [update_anchor(anchor, 120, 120/0.7835) for anchor in anchors_l]
+
+
+        self.anchors = torch.tensor(anchors_s + anchors_m + anchors_l) # concatenate anchors
         self.anchors_wh = self.anchors[:, 2:4] - self.anchors[:, :2]
         self.anchors_x1y1 = self.anchors[:, :2]
 
@@ -99,7 +114,7 @@ class Assigner(nn.Module):
 
         assigned_scores = torch.ones_like(batch_gt_anchor_iou, dtype=torch.float)[:, 0, :]
         if pred_bboxes is not None:
-            ious = calculate_batch_iou(gt_bboxes, self.anchors.unsqueeze(0)) * batch_positive_mask
+            ious = calculate_batch_iou(gt_bboxes, self.anchors.unsqueeze(0)) #* batch_positive_mask
             # ious = calculate_batch_iou(gt_bboxes, pred_bboxes) * batch_positive_mask
             ious = ious[:, 0, :]
             uniform_iou = ious / ious.max(dim=1).values.unsqueeze(-1)
@@ -109,5 +124,8 @@ class Assigner(nn.Module):
 
 
 if __name__ == '__main__':
+
     Assigner((640, 640), [(80, 80), (40, 40), (20, 20)])
     # Assigner((640, 640), [(20, 20), (10, 10), (5, 5)])
+    Assigner((640, 640), [(20, 20), (10, 10), (5, 5)])
+

@@ -5,6 +5,7 @@ from torch.utils.data import DataLoader
 from tqdm import tqdm
 
 from assigner import Assigner
+from assigner import calculate_batch_iou
 from darknet import DarkNet
 from face_dataset import WiderFaceDataset
 from loss_functions import DetLoss
@@ -57,6 +58,8 @@ for epoch in range(100):
 
     val_loss = 0
     net.eval()
+    accuracies = []
+    iou_count = 0
     with torch.no_grad():
         for step, data in tqdm(enumerate(val_dataloader), total=len(val_dataloader)):
             bs = data['image'].shape[0]
@@ -68,7 +71,16 @@ for epoch in range(100):
                               pred_m.reshape(bs, anchor_size, -1),
                               pred_l.reshape(bs, anchor_size, -1)], dim=-1)
             pred = torch.permute(pred, (0, 2, 1))
-            pred_bbox_s, pred_prob_s = net_predict_bbox(pred, assigner.anchors_wh, assigner.anchors_x1y1)
+            pred_bbox_each_anchor, pred_prob_each_anchor = net_predict_bbox(pred, assigner.anchors_wh,
+                                                                            assigner.anchors_x1y1)
+
+            max_idx_p = torch.argmax(pred_prob_each_anchor, dim=1).unsqueeze(-1)
+            max_idx_b = max_idx_p.unsqueeze(-1).expand(-1, -1, 4)
+            pred_bbox_s = torch.gather(pred_bbox_each_anchor, 1, max_idx_b)
+            pred_prob_s = torch.gather(pred_prob_each_anchor, 1, max_idx_p)
+            pred_label_s = torch.ones_like(pred_prob_s, dtype=torch.long)
+            ious = calculate_batch_iou(gt_boxes, pred_bbox_s)
+            iou_count += (ious > 0.5).sum()
 
             batch_pos_mask, batch_neg_mask, weights = assigner(gt_boxes, image)
 
@@ -77,5 +89,9 @@ for epoch in range(100):
             val_loss += loss.item()
 
         val_loss = val_loss / len(val_dataloader)
+        accuracy = iou_count / len(val_dataset)
+        accuracies.append(accuracy)
+        print(f'valid: epoch: {epoch}, val_loss: {val_loss:.4f}, accuracy: {accuracy:.4f}')
+    torch.save(net.state_dict(), f'checkpoint/model_e_{epoch}_train_loss_{train_loss:.2f}_val_loss_{val_loss:.2f}_accuracy_{accuracy:.2f}.pth')
+    print(f'accuracy: {accuracies}')
 
-    torch.save(net.state_dict(), f'checkpoint/model_e_{epoch}_train_loss_{train_loss:.2f}_val_loss_{val_loss:.2f}.pth')
