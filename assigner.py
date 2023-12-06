@@ -63,9 +63,9 @@ class Assigner(nn.Module):
         anchors_l = [[l3_unit_w * i, l3_unit_h * j, l3_unit_w * (i + 1), l3_unit_h * (j + 1)]
                      for j in range(anchor_l3_n) for i in range(anchor_l3_m)]
 
-        anchors_s = [update_anchor(anchor, 40, 40/0.7835) for anchor in anchors_s]
-        anchors_m = [update_anchor(anchor, 60, 60/0.7835) for anchor in anchors_m]
-        anchors_l = [update_anchor(anchor, 120, 120/0.7835) for anchor in anchors_l]
+        anchors_s = [update_anchor(anchor, 100, 100 * 1.27632319) for anchor in anchors_s] # modify anchor size for different train dataset
+        anchors_m = [update_anchor(anchor, 120, 120 * 1.27632319) for anchor in anchors_m]
+        anchors_l = [update_anchor(anchor, 140, 140 * 1.27632319) for anchor in anchors_l]
 
 
         self.anchors = torch.tensor(anchors_s + anchors_m + anchors_l) # concatenate anchors
