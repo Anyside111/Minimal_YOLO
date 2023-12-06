@@ -21,15 +21,15 @@ from predict import net_predict_bbox
 # val_dataloader = DataLoader(val_dataset, batch_size=2, shuffle=False, num_workers=0)
 
 
-train_dataset_l = WiderFaceDatasetDivide(txt_file='wider_face_dataset/wider_face_train_bbx_gt.txt',
+train_dataset_m = WiderFaceDatasetDivide(txt_file='wider_face_dataset/wider_face_train_bbx_gt.txt',
                                            root_dir='wider_face_dataset/WIDER_train/images',
-                                           width_range=(200, 500))
-val_dataset_l = WiderFaceDatasetDivide(txt_file='wider_face_dataset/wider_face_val_bbx_gt.txt',
+                                           width_range=(100, 200))
+val_dataset_m = WiderFaceDatasetDivide(txt_file='wider_face_dataset/wider_face_val_bbx_gt.txt',
                                             root_dir='wider_face_dataset/WIDER_val/images',
-                                            width_range=(200, 500))
+                                            width_range=(100, 200))
 
-train_dataloader = DataLoader(train_dataset_l, batch_size=2, shuffle=True, num_workers=0)
-val_dataloader = DataLoader(val_dataset_l, batch_size=2, shuffle=False, num_workers=0)
+train_dataloader = DataLoader(train_dataset_m, batch_size=2, shuffle=True, num_workers=0)
+val_dataloader = DataLoader(val_dataset_m, batch_size=2, shuffle=False, num_workers=0)
 
 
 
@@ -103,7 +103,7 @@ for epoch in range(100):
             val_loss += loss.item()
 
         val_loss = val_loss / len(val_dataloader)
-        accuracy = iou_count / len(val_dataset_l) #validate on large dataset
+        accuracy = iou_count / len(val_dataset_m) #validate on medium dataset
         accuracies.append(accuracy)
         print(f'valid: epoch: {epoch}, val_loss: {val_loss:.4f}, accuracy: {accuracy:.4f}')
     torch.save(net.state_dict(), f'checkpoint/model_e_{epoch}_train_loss_{train_loss:.2f}_val_loss_{val_loss:.2f}_accuracy_{accuracy:.2f}.pth')
